@@ -1,0 +1,4 @@
+bun.lockb
+.env
+node_modules
+dist
