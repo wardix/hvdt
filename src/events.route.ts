@@ -6,8 +6,11 @@ import { DEFAULT_PICTURE_FILE, NATS_SERVERS, NATS_TOKEN } from './config'
 
 const app = new Hono()
 
-app.post('/:companyId', async (c) => {
+async function handleEvent(c: any, topic: string) {
   const now = new Date()
+
+  let nc = null
+
   try {
     const companyId = c.req.param('companyId')
     if (!companyId) {
@@ -21,9 +24,15 @@ app.post('/:companyId', async (c) => {
       return c.json({ message: 'Missing event_log' })
     }
 
-    const eventLog = JSON.parse(eventLogText)
-    if (!eventLog.AccessControllerEvent.employeeNoString) {
-      return c.json({ message: 'Ignored event' })
+    let eventLog
+    try {
+      eventLog = JSON.parse(eventLogText)
+    } catch {
+      return c.json({ message: 'Invalid event_log format' })
+    }
+
+    if (!eventLog.AccessControllerEvent?.employeeNoString) {
+      return c.json({ message: 'Ignored event, missing employeeNoString' })
     }
 
     let pictureFile = formData.get('Picture') as File
@@ -35,11 +44,7 @@ app.post('/:companyId', async (c) => {
       })
     }
 
-    const nc = await connect({
-      servers: NATS_SERVERS,
-      token: NATS_TOKEN,
-    })
-
+    nc = await connect({ servers: NATS_SERVERS, token: NATS_TOKEN })
     const js = nc.jetstream()
 
     const hdrs = headers()
@@ -60,19 +65,27 @@ app.post('/:companyId', async (c) => {
     )
     hdrs.set('Request-DateTime', now.toISOString())
 
-    await js.publish(
-      'events.hikvision_access_verified',
-      Buffer.from(await pictureFile.arrayBuffer()),
-      { headers: hdrs },
-    )
-
-    nc.close()
+    await js.publish(topic, Buffer.from(await pictureFile.arrayBuffer()), {
+      headers: hdrs,
+    })
 
     return c.json({ message: 'OK' })
   } catch (error) {
     console.error('Error handling request:', error)
     return c.json({ error: 'Failed to process event' }, 500)
+  } finally {
+    if (nc) {
+      nc.close()
+    }
   }
-})
+}
+
+app.post('/:companyId', (c) =>
+  handleEvent(c, 'events.hikvision_access_verified'),
+)
+
+app.post('/shared/:companyId', (c) =>
+  handleEvent(c, 'events.shared_hikvision_access_verified'),
+)
 
 export default app
