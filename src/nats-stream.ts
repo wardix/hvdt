@@ -11,7 +11,7 @@ const jsm = await js.jetstreamManager()
 await jsm.streams.add({
   name: 'EVENTS',
   retention: RetentionPolicy.Interest,
-  subjects: ['events.>']
+  subjects: ['events.>'],
 })
 
 await nc.close()
