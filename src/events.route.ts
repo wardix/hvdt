@@ -19,9 +19,12 @@ async function handleEvent(c: any, topic: string) {
 
     const formData = await c.req.formData()
 
-    const eventLogText = formData.get('event_log') as string
+    const eventLogText = (formData.get('event_log') ||
+      formData.get('AccessControllerEvent')) as string
     if (!eventLogText) {
-      return c.json({ message: 'Missing event_log' })
+      return c.json({
+        message: 'Missing event_log or AccessControllerEvent part',
+      })
     }
 
     let eventLog
