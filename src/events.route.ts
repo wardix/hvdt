@@ -91,4 +91,8 @@ app.post('/shared/:companyId', (c) =>
   handleEvent(c, 'events.shared_hikvision_access_verified'),
 )
 
+app.post('/monggo/:companyId', (c) =>
+  handleEvent(c, 'events.monggo.hikvision_access_verified'),
+)
+
 export default app
